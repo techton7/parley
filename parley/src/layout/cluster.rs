@@ -176,7 +176,7 @@ impl<'a, B: Brush> Cluster<'a, B> {
 
     /// Returns `true` if the cluster is a word boundary.
     pub fn is_word_boundary(&self) -> bool {
-        self.data.info.is_boundary()
+        self.data.info.is_word_boundary()
     }
 
     /// Returns `true` if the cluster is a soft line break.

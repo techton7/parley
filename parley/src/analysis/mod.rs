@@ -131,6 +131,7 @@ impl CharInfo {
     const EMOJI_OR_PICTOGRAPH_SHIFT: u8 = 3;
     const CONTRIBUTES_TO_SHAPING_SHIFT: u8 = 4;
     const FORCE_NORMALIZE_SHIFT: u8 = 5;
+    const WORD_BOUNDARY_SHIFT: u8 = 7;
 
     #[allow(
         dead_code,
@@ -146,6 +147,7 @@ impl CharInfo {
     const EMOJI_OR_PICTOGRAPH_MASK: u8 = 1 << Self::EMOJI_OR_PICTOGRAPH_SHIFT;
     const CONTRIBUTES_TO_SHAPING_MASK: u8 = 1 << Self::CONTRIBUTES_TO_SHAPING_SHIFT;
     const FORCE_NORMALIZE_MASK: u8 = 1 << Self::FORCE_NORMALIZE_SHIFT;
+    const WORD_BOUNDARY_MASK: u8 = 1 << Self::WORD_BOUNDARY_SHIFT;
 
     fn new(
         boundary: Boundary,
@@ -159,6 +161,7 @@ impl CharInfo {
         is_emoji_or_pictograph: bool,
         contributes_to_shaping: bool,
         force_normalize: bool,
+        is_word_boundary: bool,
     ) -> Self {
         Self {
             boundary,
@@ -171,7 +174,8 @@ impl CharInfo {
                 | (is_control as u8) << Self::CONTROL_SHIFT
                 | (is_emoji_or_pictograph as u8) << Self::EMOJI_OR_PICTOGRAPH_SHIFT
                 | (contributes_to_shaping as u8) << Self::CONTRIBUTES_TO_SHAPING_SHIFT
-                | (force_normalize as u8) << Self::FORCE_NORMALIZE_SHIFT,
+                | (force_normalize as u8) << Self::FORCE_NORMALIZE_SHIFT
+                | (is_word_boundary as u8) << Self::WORD_BOUNDARY_SHIFT,
         }
     }
 
@@ -211,6 +215,11 @@ impl CharInfo {
     #[inline(always)]
     pub(crate) fn force_normalize(self) -> bool {
         self.flags & Self::FORCE_NORMALIZE_MASK != 0
+    }
+
+    #[inline(always)]
+    pub(crate) fn is_word_boundary(self) -> bool {
+        self.flags & Self::WORD_BOUNDARY_MASK != 0
     }
 }
 
@@ -468,7 +477,7 @@ pub(crate) fn analyze_text<B: Brush>(
             Boundary::None
         };
 
-        (boundary, ch)
+        (boundary, is_word, ch)
     });
 
     let properties = |c| lcx.analysis_data_sources.properties(c);
@@ -481,7 +490,7 @@ pub(crate) fn analyze_text<B: Brush>(
         // characters (like '\n') exist at an index position one higher than the respective
         // character's index, but we need our iterators to align, and the rest are simply
         // character-indexed.
-        .fold(false, |is_mandatory_linebreak, (boundary, ch)| {
+        .fold(false, |is_mandatory_linebreak, (boundary, is_word, ch)| {
             let properties = properties(ch);
             let script = properties.script();
             let grapheme_cluster_break = properties.grapheme_cluster_break();
@@ -528,6 +537,7 @@ pub(crate) fn analyze_text<B: Brush>(
                     is_emoji_or_pictograph,
                     contributes_to_shaping(general_category, script),
                     force_normalize,
+                    is_word,
                 ),
                 0, // Style index is populated later
             ));
